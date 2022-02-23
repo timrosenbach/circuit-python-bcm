@@ -38,7 +38,14 @@ class Speed(Mode):
         
 class Distance(Mode):
     def render(self):
-        text = "{} m".format(math.floor(self.control.distance))
+        distance = self.control.distance
+        
+        text = None
+        if distance < 1000:
+            text = "{} m".format(round(distance))
+        else:
+            text = "{} km".format(round(distance / 1000, 2))
+            
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
         text_area.anchored_position = (128 / 2, 32 / 2)
@@ -70,7 +77,7 @@ class Satellites(Mode):
         
 class Temperature(Mode):
     def render(self):
-        text = "{} Grad".format(math.floor(microcontroller.cpu.temperature))
+        text = "{} Grad".format(round(microcontroller.cpu.temperature, 1))
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
         text_area.anchored_position = (128 / 2, 32 / 2)
@@ -122,7 +129,7 @@ def _convertKnotsToKmh(knots):
     if knots == None:
         return 0
     
-    return math.floor(knots * 1.852)
+    return round(knots * 1.852)
     
 def getActiveMode(control):
     for index, mode in enumerate(control.modes):
@@ -187,13 +194,13 @@ async def calculateDistance(control):
             
             duration = end - start
             
+            print("\n")
             print("Aktuelle Latitude: {}".format(latitude))
             print("Aktuelle Longitude: {}".format(longitude))
             print("Letzte Latitude: {}".format(control.latitude))
             print("Letzte Longitude: {}".format(control.longitude)) 
             print("Distanz: {}".format(d))
             print("Dauer: {}".format(duration))
-            print("\n")
         
         await asyncio.sleep(5)
         
