@@ -12,6 +12,10 @@ import rtc
 import terminalio
 import time
 
+WIDTH = 128
+HEIGHT = 32
+DEBUG = False
+
 class Mode:
     def __init__(self, control, active):
         self.active = active
@@ -25,7 +29,7 @@ class Connecting(Mode):
         text = "BOOTing..."
         text_area = label.Label(terminalio.FONT, text = text, scale = 1)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
     
 class Speed(Mode):
@@ -33,7 +37,7 @@ class Speed(Mode):
         text = "{} km/h".format(_convertKnotsToKmh(self.control.gps.speed_knots))
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
         
 class Distance(Mode):
@@ -48,7 +52,7 @@ class Distance(Mode):
             
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
         
 class Heading(Mode):
@@ -56,7 +60,7 @@ class Heading(Mode):
         text = "{}'".format(self.control.gps.track_angle_deg)    
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
         
 class Time(Mode):
@@ -64,7 +68,7 @@ class Time(Mode):
         text = "{} Uhr".format(_format_datetime(time.localtime()))
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
         
 class Satellites(Mode):
@@ -72,7 +76,7 @@ class Satellites(Mode):
         text = "{} Satelliten".format(self.control.gps.satellites)    
         text_area = label.Label(terminalio.FONT, text = text, scale = 1)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
         
 class Temperature(Mode):
@@ -80,7 +84,7 @@ class Temperature(Mode):
         text = "{} Grad".format(round(microcontroller.cpu.temperature, 1))
         text_area = label.Label(terminalio.FONT, text = text, scale = 2)
         text_area.anchor_point = (0.5, 0.5)
-        text_area.anchored_position = (128 / 2, 32 / 2)
+        text_area.anchored_position = (WIDTH / 2, HEIGHT / 2)
         self.control.display.show(text_area)
         
 class Control:
@@ -97,15 +101,14 @@ def initGPS():
     TX = board.GP0
     RX = board.GP1
     uart = busio.UART(TX, RX, baudrate = 9600, timeout = 10)
-    gps = adafruit_gps.GPS(uart, debug = False)
+    gps = adafruit_gps.GPS(uart, debug = DEBUG)
+    
     gps.send_command(b"PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0")
     gps.send_command(b"PMTK220,1000")
     
-    rtc.set_time_source(gps)
-    
     return gps
 
-def initDisplay(width = 128, height = 32):
+def initDisplay(width = WIDTH, height = HEIGHT):
     CLK = board.GP10
     MOSI = board.GP11
     DC = board.GP8
@@ -114,7 +117,7 @@ def initDisplay(width = 128, height = 32):
     
     spi = busio.SPI(clock = CLK, MOSI = MOSI)
     display_bus = displayio.FourWire(spi, command = DC, chip_select = CS, baudrate = 1000000, reset = RST)
-
+    
     return adafruit_displayio_ssd1305.SSD1305(display_bus, width = width, height = height)
 
 def _format_datetime(datetime):
@@ -144,13 +147,14 @@ def switchMode(control):
     else:
         control.modes[0].active = True
         
-    print("\n")
-    print("Switching mode to {}".format(type(getActiveMode(control)[1]).__name__))
+    if DEBUG:
+        print("\n")
+        print("Switching mode to {}".format(type(getActiveMode(control)[1]).__name__))
     
 async def updateGPS(control):
     while True:
-        control.gps.update()        
-        await asyncio.sleep(1)
+        control.gps.update()
+        await asyncio.sleep(0)
         
 async def refreshDisplay(control):
     while True:
@@ -194,15 +198,16 @@ async def calculateDistance(control):
             
             duration = end - start
             
-            print("\n")
-            print("Aktuelle Latitude: {}".format(latitude))
-            print("Aktuelle Longitude: {}".format(longitude))
-            print("Letzte Latitude: {}".format(control.latitude))
-            print("Letzte Longitude: {}".format(control.longitude)) 
-            print("Distanz: {}".format(d))
-            print("Dauer: {}".format(duration))
+            if DEBUG:
+                print("\n")
+                print("Aktuelle Latitude: {}".format(latitude))
+                print("Aktuelle Longitude: {}".format(longitude))
+                print("Letzte Latitude: {}".format(control.latitude))
+                print("Letzte Longitude: {}".format(control.longitude)) 
+                print("Distanz: {}".format(d))
+                print("Dauer: {}".format(duration))
         
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
         
 async def catch_pin_transitions(control, pin):
     with keypad.Keys((pin,), value_when_pressed=False) as keys:
@@ -222,26 +227,28 @@ async def catch_pin_transitions(control, pin):
                         control.distance = 0
                         control.buttonPressedAt = 0
                         longPressed = True
-                        print("\n")
-                        print("long press")
+                        
+                        if DEBUG:
+                            print("\n")
+                            print("long press")
                         
                     if not longPressed:
                         switchMode(control)
                     
             await asyncio.sleep(0)
 
-# Release any previously configured displays
-displayio.release_displays()
-
 async def main():
     control = Control(initGPS(), initDisplay())
     gps_task = asyncio.create_task(updateGPS(control))
     display_task = asyncio.create_task(refreshDisplay(control))
     distance_task = asyncio.create_task(calculateDistance(control))
-    button_interrupt_task = asyncio.create_task(catch_pin_transitions(control, board.GP16))
+    button_interrupt_task = asyncio.create_task(catch_pin_transitions(control, board.GP15))
     
     # This will run forever, because no tasks ever finish.
     await asyncio.gather(gps_task, display_task, distance_task, button_interrupt_task)
 
+
+# Release any previously configured displays
+displayio.release_displays()
 
 asyncio.run(main())
